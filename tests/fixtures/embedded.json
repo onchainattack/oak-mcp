@@ -1,0 +1,61 @@
+{
+  "oak": {
+    "schema_version": "2",
+    "oak_version": "test-fixture",
+    "generated_at": "2026-05-03T00:00:00+00:00",
+    "tactics": [
+      {
+        "id": "OAK-T9",
+        "name": "Smart Contract Exploitation",
+        "phase": "Execution",
+        "techniques": ["OAK-T9.005"],
+        "source_file": "tactics/T9-smart-contract-exploitation.md"
+      }
+    ],
+    "techniques": [
+      {
+        "id": "OAK-T9.005",
+        "name": "Reentrancy",
+        "parent_tactics": ["OAK-T9"],
+        "maturity": "stable",
+        "chains": ["EVM"],
+        "first_documented": "2016-06",
+        "aliases": ["recursive call attack"],
+        "source_file": "techniques/T9.005-reentrancy.md"
+      }
+    ],
+    "mitigations": [
+      {
+        "id": "OAK-M01",
+        "name": "Checks-Effects-Interactions Discipline",
+        "class": "architecture",
+        "audience": ["protocol-engineer"],
+        "maps_to_techniques": ["OAK-T9.005"],
+        "source_file": "mitigations/OAK-M01-cei.md"
+      }
+    ],
+    "software": [
+      {
+        "id": "OAK-S01",
+        "name": "TestDrainer",
+        "type": "drainer-kit",
+        "aliases": ["fixture-drainer"],
+        "used_by_groups": ["OAK-G01"],
+        "observed_techniques": ["OAK-T9.005"],
+        "source_file": "software/OAK-S01-test-drainer.md"
+      }
+    ],
+    "relationships": [
+      { "type": "uses", "source": "OAK-S01", "target": "OAK-T9.005" },
+      { "type": "mitigates", "source": "OAK-M01", "target": "OAK-T9.005" }
+    ]
+  },
+  "docs": {
+    "tactics/T9-smart-contract-exploitation.md": "# Smart Contract Exploitation\n\nTactic-level framing for in-protocol exploitation patterns.\n",
+    "techniques/T9.005-reentrancy.md": "# Reentrancy\n\nReentrancy is a class of vulnerability where an external call into an attacker-controlled contract is made before internal accounting state is finalised. The DAO 2016 incident is the canonical historical anchor.\n\n## Indicators\n\n- repeated re-entries into the same selector before the originating call returns\n- mismatch between event-emission order and state-update order\n",
+    "mitigations/OAK-M01-cei.md": "# Checks-Effects-Interactions\n\nDiscipline for ordering reads, writes, and external calls in Solidity to neutralise reentrancy.\n",
+    "software/OAK-S01-test-drainer.md": "# TestDrainer\n\nFixture software entry used in oak-mcp's automated tests. Not a real malware family.\n"
+  },
+  "source": "test-fixture",
+  "fetchedAt": "2026-05-03T00:00:00.000Z"
+}
