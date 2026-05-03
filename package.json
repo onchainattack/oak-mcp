@@ -16,8 +16,10 @@
   ],
   "scripts": {
     "fetch-data": "node scripts/fetch-data.mjs",
+    "fetch-data:skip-if-present": "node scripts/fetch-data.mjs --skip-if-present",
     "build": "npm run fetch-data && tsc",
-    "prepare": "npm run build",
+    "build:offline": "npm run fetch-data:skip-if-present && tsc",
+    "prepare": "npm run build:offline",
     "start": "node dist/server.js",
     "dev": "tsx src/server.ts",
     "typecheck": "tsc --noEmit"

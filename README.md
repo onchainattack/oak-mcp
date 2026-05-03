@@ -84,16 +84,26 @@ Settings → Cline → MCP Servers:
 ```bash
 git clone git@github.com:onchainattack/oak-mcp.git
 cd oak-mcp
-npm install
-npm run build
+npm install              # runs `prepare` → uses bundled data/embedded.json, no network
 node dist/server.js
 ```
 
-For development against a local OAK clone:
+To pull a fresh OAK snapshot from `https://onchainattack.org` (overwrites
+`data/embedded.json`):
 
 ```bash
-OAK_LOCAL=/path/to/oak npm run build
+npm run fetch-data
 ```
+
+To build against a local OAK clone instead:
+
+```bash
+OAK_LOCAL=/path/to/oak npm run fetch-data && npm run build:offline
+```
+
+The committed `data/embedded.json` is the canonical snapshot shipped with
+the released package. `npm install` from this repo is fully offline because
+the `prepare` script re-runs the fetcher in `--skip-if-present` mode.
 
 ## Tools exposed
 
