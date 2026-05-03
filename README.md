@@ -124,13 +124,22 @@ the `prepare` script re-runs the fetcher in `--skip-if-present` mode.
 
 Each release of `@onchainattack/oak-mcp` bundles a snapshot of OAK content from `https://onchainattack.org/tools/oak.json` at the moment of release. Reinstall (`npm install -g @onchainattack/oak-mcp@latest`) to get fresher content.
 
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development setup, coding
+conventions, and where different kinds of contributions belong (this repo vs.
+upstream OAK). Security issues: see [`SECURITY.md`](./SECURITY.md).
+
 ## License
 
-MIT — see `LICENSE`. The OAK content distributed with this package is licensed CC-BY-SA 4.0 by the OAK project — see [DISCLAIMER.md](https://onchainattack.org/DISCLAIMER.md).
+The MCP server code is MIT — see `LICENSE`. The bundled OAK content is
+licensed CC-BY-SA 4.0 by the OAK project — see [`NOTICE`](./NOTICE) for
+attribution requirements and [DISCLAIMER.md](https://onchainattack.org/DISCLAIMER.md).
 
 ## Links
 
 - OAK website: <https://onchainattack.org>
 - OAK framework repo: <https://github.com/onchainattack/oak>
 - This repo: <https://github.com/onchainattack/oak-mcp>
+- Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
 - Corrections / takedowns: <https://onchainattack.org/CORRECTIONS.md>

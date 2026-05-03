@@ -1,0 +1,35 @@
+oak-mcp
+Copyright (c) 2026 OnChain Attack Knowledge contributors
+
+This product is licensed under the MIT License (see LICENSE).
+
+================================================================================
+Bundled third-party content
+================================================================================
+
+This package bundles a snapshot of the OAK (OnChain Attack Knowledge)
+framework — Tactics, Techniques, Mitigations, Software, worked examples,
+and the relationships between them — under data/embedded.json.
+
+The OAK framework and its associated documentation are produced by the
+OAK project at https://onchainattack.org and the upstream repository
+https://github.com/onchainattack/oak, and are licensed under the
+Creative Commons Attribution-ShareAlike 4.0 International License
+(CC-BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+
+When you redistribute, embed, or build derivative works on top of the
+content shipped in data/embedded.json, you must:
+
+  1. Give appropriate credit to the OAK project (e.g. "Contains content
+     from the OAK framework — https://onchainattack.org — licensed under
+     CC-BY-SA 4.0").
+  2. Provide a link to the CC-BY-SA 4.0 license.
+  3. Indicate if you made changes to the content.
+  4. Distribute your derivative work under the same CC-BY-SA 4.0 license.
+
+The MIT license that covers the oak-mcp software code does NOT apply to
+the OAK content itself. Treat the two licensing regimes separately.
+
+For corrections or takedown requests against OAK content, see
+https://onchainattack.org/CORRECTIONS.md and
+https://onchainattack.org/DISCLAIMER.md.

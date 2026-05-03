@@ -1,0 +1,31 @@
+name: OAK content correction (wrong repo)
+description: This template intentionally redirects you to the upstream OAK repo.
+title: "[content] "
+labels: ["wrong-repo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## You're in the wrong repo
+
+        `oak-mcp` only **packages** the OAK content as MCP tools. The content
+        itself — Tactics, Techniques, Mitigations, Software entries, worked
+        examples, attribution claims, references — lives in the upstream OAK
+        project and is governed by its corrections process.
+
+        Please open your issue in one of these places:
+
+        - **OAK repo issues:** <https://github.com/onchainattack/oak/issues/new/choose>
+        - **OAK corrections process:** <https://onchainattack.org/CORRECTIONS.md>
+        - **OAK disclaimer / takedown contact:** <https://onchainattack.org/DISCLAIMER.md>
+
+        Once the upstream change lands, we'll roll a new `oak-mcp` release
+        that bundles the updated snapshot.
+
+  - type: input
+    id: confirm
+    attributes:
+      label: I understand and will refile in the OAK repo
+      placeholder: type "yes" to acknowledge before submitting
+    validations:
+      required: true

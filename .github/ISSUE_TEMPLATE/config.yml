@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OAK content correction or takedown
+    url: https://github.com/onchainattack/oak/issues/new/choose
+    about: >-
+      Wrong, missing, or disputed Tactic / Technique / Mitigation / Software /
+      worked example. These belong in the upstream OAK repo, not in oak-mcp.
+  - name: OAK corrections page
+    url: https://onchainattack.org/CORRECTIONS.md
+    about: Public corrections process for OAK content.
+  - name: Security vulnerability
+    url: https://github.com/onchainattack/oak-mcp/security/advisories/new
+    about: >-
+      Report security issues privately. See SECURITY.md for scope.
+  - name: Model Context Protocol questions
+    url: https://github.com/modelcontextprotocol/typescript-sdk/issues
+    about: Questions about MCP itself or the TypeScript SDK belong upstream.
