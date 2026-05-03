@@ -109,6 +109,40 @@ function findDocBody(d: EmbeddedData, sourceFile: string | undefined): string | 
   return d.docs[rel] ?? d.docs[sourceFile] ?? null;
 }
 
+// Lazily-built lowercase-body cache so oak_search doesn't re-lowercase the
+// entire embedded corpus on every call. Keyed by source_file (as stored
+// post-normalization). Built once per process on first search.
+let LOWER_BODIES: Map<string, string> | null = null;
+function getLowerBody(d: EmbeddedData, sourceFile: string | undefined): string | null {
+  if (!sourceFile) return null;
+  if (!LOWER_BODIES) {
+    LOWER_BODIES = new Map();
+    for (const [k, v] of Object.entries(d.docs)) {
+      LOWER_BODIES.set(k, v.toLowerCase());
+    }
+  }
+  const body = findDocBody(d, sourceFile);
+  if (!body) return null;
+  // Try the relative key first, fall back to the raw key the body came in under.
+  const rel = sourceFile.replace(/^.*\/(tactics|techniques|mitigations|software|actors|data-sources|examples)\//, "$1/");
+  return LOWER_BODIES.get(rel) ?? LOWER_BODIES.get(sourceFile) ?? body.toLowerCase();
+}
+
+// Count occurrences of needle in haystack, capped to avoid one giant doc
+// dominating the score. Both inputs are expected to be lowercased.
+function countOccurrences(haystack: string, needle: string, cap = 5): number {
+  if (!needle) return 0;
+  let count = 0;
+  let from = 0;
+  while (count < cap) {
+    const idx = haystack.indexOf(needle, from);
+    if (idx === -1) break;
+    count++;
+    from = idx + needle.length;
+  }
+  return count;
+}
+
 function summarize(text: string, maxChars = 800): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars).trimEnd() + "\n\n[truncated — call oak_get_* for full content]";
@@ -140,12 +174,19 @@ const TOOLS = [
   {
     name: "oak_search",
     description:
-      "Full-text search across OAK Techniques, Mitigations, Software, and Tactics. Returns up to 12 ranked matches with id, name, kind, and one-line summary. Use for 'is there an OAK entry for X?' queries.",
+      "Full-text search across OAK Techniques, Mitigations, Software, and Tactics. Searches IDs, names, aliases, chains, classes, types AND the embedded markdown bodies (descriptions, indicators, detection signals, examples). Returns up to 12 ranked matches with id, name, kind, and one-line summary. Use for 'is there an OAK entry for X?' queries.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search keywords (technique name, alias, attacker behaviour, mitigation, software name, threat-actor name, OAK ID)" },
+        query: { type: "string", description: "Search keywords (technique name, alias, attacker behaviour, mitigation, software name, threat-actor name, OAK ID, indicator, detection signal)" },
         limit: { type: "number", description: "Max results (default 12, max 30)" },
+        kind: {
+          oneOf: [
+            { type: "string", enum: ["tactic", "technique", "mitigation", "software"] },
+            { type: "array", items: { type: "string", enum: ["tactic", "technique", "mitigation", "software"] } },
+          ],
+          description: "Restrict results to one or more entity kinds. Omit for all kinds.",
+        },
       },
       required: ["query"],
     },
@@ -259,11 +300,15 @@ const TOOLS = [
 // Tool handlers
 // ----------------------------------------------------------------------------
 
-function searchAll(d: EmbeddedData, q: string, limit: number) {
-  const needle = q.toLowerCase();
-  const results: Array<{ kind: string; id: string; name: string; summary: string; score: number }> = [];
+type SearchKind = "tactic" | "technique" | "mitigation" | "software";
 
-  const score = (s: string) => {
+function searchAll(d: EmbeddedData, q: string, limit: number, kinds?: Set<SearchKind>) {
+  const needle = q.toLowerCase();
+  const results: Array<{ kind: SearchKind; id: string; name: string; summary: string; score: number }> = [];
+  const wantKind = (k: SearchKind) => !kinds || kinds.has(k);
+
+  // Metadata score: prefers exact id/name matches over substring hits.
+  const metaScore = (s: string) => {
     const lower = s.toLowerCase();
     if (lower === needle) return 100;
     if (lower.startsWith(needle)) return 50;
@@ -271,52 +316,85 @@ function searchAll(d: EmbeddedData, q: string, limit: number) {
     return 0;
   };
 
-  for (const t of d.oak.tactics) {
-    const sc = score(t.id) + score(t.name) + score(t.phase ?? "");
-    if (sc > 0) results.push({ kind: "tactic", id: t.id, name: t.name, summary: t.phase ?? "", score: sc });
-  }
-  for (const t of d.oak.techniques) {
-    let sc = score(t.id) + score(t.name);
-    for (const a of t.aliases ?? []) sc += score(a) * 0.8;
-    for (const c of t.chains ?? []) sc += score(c) * 0.5;
-    if (sc > 0) {
-      const aliases = t.aliases?.length ? ` (aliases: ${t.aliases.slice(0, 3).join(", ")})` : "";
-      results.push({
-        kind: "technique",
-        id: t.id,
-        name: t.name,
-        summary: `${t.maturity ?? "documented"} · ${(t.chains ?? []).join("/")}${aliases}`,
-        score: sc,
-      });
+  // Body score: each occurrence in the markdown body is worth 2 points,
+  // capped at 5 occurrences (10 points). Always strictly less than a single
+  // metadata substring hit (10) so name matches still rank above body-only
+  // matches when both fire, but body-only matches still surface.
+  const bodyScore = (sourceFile?: string) => {
+    const lower = getLowerBody(d, sourceFile);
+    if (!lower) return 0;
+    return countOccurrences(lower, needle) * 2;
+  };
+
+  if (wantKind("tactic")) {
+    for (const t of d.oak.tactics) {
+      const sc = metaScore(t.id) + metaScore(t.name) + metaScore(t.phase ?? "") + bodyScore(t.source_file);
+      if (sc > 0) results.push({ kind: "tactic", id: t.id, name: t.name, summary: t.phase ?? "", score: sc });
     }
   }
-  for (const m of d.oak.mitigations) {
-    const sc = score(m.id) + score(m.name) + score(m.class ?? "");
-    if (sc > 0) {
-      results.push({
-        kind: "mitigation",
-        id: m.id,
-        name: m.name,
-        summary: `${m.class ?? "—"} · maps to ${m.maps_to_techniques?.length ?? 0} techniques`,
-        score: sc,
-      });
+  if (wantKind("technique")) {
+    for (const t of d.oak.techniques) {
+      let sc = metaScore(t.id) + metaScore(t.name);
+      for (const a of t.aliases ?? []) sc += metaScore(a) * 0.8;
+      for (const c of t.chains ?? []) sc += metaScore(c) * 0.5;
+      sc += bodyScore(t.source_file);
+      if (sc > 0) {
+        const aliases = t.aliases?.length ? ` (aliases: ${t.aliases.slice(0, 3).join(", ")})` : "";
+        results.push({
+          kind: "technique",
+          id: t.id,
+          name: t.name,
+          summary: `${t.maturity ?? "documented"} · ${(t.chains ?? []).join("/")}${aliases}`,
+          score: sc,
+        });
+      }
     }
   }
-  for (const s of d.oak.software) {
-    let sc = score(s.id) + score(s.name) + score(s.type ?? "");
-    for (const a of s.aliases ?? []) sc += score(a) * 0.8;
-    if (sc > 0) {
-      results.push({
-        kind: "software",
-        id: s.id,
-        name: s.name,
-        summary: `${s.type ?? "—"}${(s.used_by_groups ?? []).length ? ` · used by ${s.used_by_groups!.join(", ")}` : ""}`,
-        score: sc,
-      });
+  if (wantKind("mitigation")) {
+    for (const m of d.oak.mitigations) {
+      const sc = metaScore(m.id) + metaScore(m.name) + metaScore(m.class ?? "") + bodyScore(m.source_file);
+      if (sc > 0) {
+        results.push({
+          kind: "mitigation",
+          id: m.id,
+          name: m.name,
+          summary: `${m.class ?? "—"} · maps to ${m.maps_to_techniques?.length ?? 0} techniques`,
+          score: sc,
+        });
+      }
+    }
+  }
+  if (wantKind("software")) {
+    for (const s of d.oak.software) {
+      let sc = metaScore(s.id) + metaScore(s.name) + metaScore(s.type ?? "");
+      for (const a of s.aliases ?? []) sc += metaScore(a) * 0.8;
+      sc += bodyScore(s.source_file);
+      if (sc > 0) {
+        results.push({
+          kind: "software",
+          id: s.id,
+          name: s.name,
+          summary: `${s.type ?? "—"}${(s.used_by_groups ?? []).length ? ` · used by ${s.used_by_groups!.join(", ")}` : ""}`,
+          score: sc,
+        });
+      }
     }
   }
 
-  return results.sort((a, b) => b.score - a.score).slice(0, limit).map(({ score, ...r }) => r);
+  return results.sort((a, b) => b.score - a.score).slice(0, limit).map(({ score: _score, ...r }) => r);
+}
+
+function parseKindArg(raw: unknown): Set<SearchKind> | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const list = Array.isArray(raw) ? raw : [raw];
+  const valid: SearchKind[] = ["tactic", "technique", "mitigation", "software"];
+  const out = new Set<SearchKind>();
+  for (const k of list) {
+    if (typeof k === "string" && (valid as string[]).includes(k)) {
+      out.add(k as SearchKind);
+    }
+  }
+  return out.size > 0 ? out : undefined;
 }
 
 function getEntity(d: EmbeddedData, id: string) {
@@ -431,7 +509,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const q = String(args.query ?? "").trim();
         if (!q) return err("query is required");
         const limit = Math.min(30, Math.max(1, Number(args.limit ?? 12)));
-        return ok(searchAll(d, q, limit));
+        const kinds = parseKindArg(args.kind);
+        return ok(searchAll(d, q, limit, kinds));
       }
 
       case "oak_get_technique":
