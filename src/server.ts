@@ -87,7 +87,10 @@ type EmbeddedData = {
 };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = path.resolve(here, "..", "data", "embedded.json");
+// Allow tests / advanced users to point the server at an alternative snapshot.
+const DATA_PATH = process.env.OAK_DATA_PATH
+  ? path.resolve(process.env.OAK_DATA_PATH)
+  : path.resolve(here, "..", "data", "embedded.json");
 
 let DATA: EmbeddedData | null = null;
 
