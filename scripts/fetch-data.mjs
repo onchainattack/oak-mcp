@@ -41,10 +41,32 @@ async function listLocalDir(rel) {
   return (await readdir(path.join(LOCAL, rel))).filter((f) => f.endsWith(".md"));
 }
 
+// Strip absolute/host-specific prefix from a source_file path so the embedded
+// snapshot stays portable and doesn't leak the maintainer's home directory.
+// Keeps everything from the first known top-level OAK directory onward.
+const KNOWN_DIRS = ["tactics", "techniques", "mitigations", "software", "actors", "data-sources", "examples"];
+function relativizeSourceFile(raw) {
+  if (!raw || typeof raw !== "string") return raw;
+  const m = raw.match(new RegExp(`(?:^|/)((?:${KNOWN_DIRS.join("|")})/[^/]+\\.md)$`));
+  return m ? m[1] : raw;
+}
+
+function normalizeOak(oak) {
+  for (const collection of ["tactics", "techniques", "mitigations", "software"]) {
+    if (!Array.isArray(oak[collection])) continue;
+    for (const entry of oak[collection]) {
+      if (entry && typeof entry === "object" && "source_file" in entry) {
+        entry.source_file = relativizeSourceFile(entry.source_file);
+      }
+    }
+  }
+  return oak;
+}
+
 async function loadOak() {
   if (LOCAL) {
     console.error(`[oak-mcp] using local OAK at ${LOCAL}`);
-    const oak = JSON.parse(await readLocalText("tools/oak.json"));
+    const oak = normalizeOak(JSON.parse(await readLocalText("tools/oak.json")));
     const dirs = ["tactics", "techniques", "examples", "actors", "data-sources", "mitigations", "software"];
     const docs = {};
     for (const d of dirs) {
@@ -60,29 +82,20 @@ async function loadOak() {
         docs[f] = await readLocalText(f);
       } catch {}
     }
-    return { oak, docs, source: `local:${LOCAL}` };
+    return { oak, docs, source: "local" };
   }
 
   console.error(`[oak-mcp] fetching from ${BASE}`);
-  const oak = await fetchJson(`${BASE}/tools/oak.json`);
+  const oak = normalizeOak(await fetchJson(`${BASE}/tools/oak.json`));
   const docs = {};
 
-  // Determine document paths from oak.json source-paths + the static-content
-  // copy contract from onchainattack.org.
+  // After normalizeOak() every source_file is already relative
+  // (e.g. "techniques/T1.001-modifiable-tax-function.md").
   const docPaths = new Set();
-
-  // Tactic source files use a fixed naming convention; reconstruct from oak.json
-  for (const t of oak.tactics ?? []) {
-    if (t.source_file) docPaths.add(t.source_file.replace(/^.*\/(tactics\/)/, "$1"));
-  }
-  for (const t of oak.techniques ?? []) {
-    if (t.source_file) docPaths.add(t.source_file.replace(/^.*\/(techniques\/)/, "$1"));
-  }
-  for (const m of oak.mitigations ?? []) {
-    if (m.source_file) docPaths.add(m.source_file.replace(/^.*\/(mitigations\/)/, "$1"));
-  }
-  for (const s of oak.software ?? []) {
-    if (s.source_file) docPaths.add(s.source_file.replace(/^.*\/(software\/)/, "$1"));
+  for (const collection of ["tactics", "techniques", "mitigations", "software"]) {
+    for (const entry of oak[collection] ?? []) {
+      if (entry?.source_file) docPaths.add(entry.source_file);
+    }
   }
 
   // Top-level docs
