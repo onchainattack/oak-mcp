@@ -4,12 +4,14 @@ Copyright (c) 2026 OnChain Attack Knowledge contributors
 This product is licensed under the MIT License (see LICENSE).
 
 ================================================================================
-Bundled third-party content
+Third-party content fetched at runtime
 ================================================================================
 
-This package bundles a snapshot of the OAK (OnChain Attack Knowledge)
-framework — Tactics, Techniques, Mitigations, Software, worked examples,
-and the relationships between them — under data/embedded.json.
+This package fetches the OAK (OnChain Attack Knowledge) framework
+content snapshot — Tactics, Techniques, Mitigations, Software, worked
+examples, and the relationships between them — at runtime from
+https://onchainattack.org/tools/embedded.json and caches it locally
+on disk under the platform cache directory.
 
 The OAK framework and its associated documentation are produced by the
 OAK project at https://onchainattack.org and the upstream repository
@@ -18,7 +20,7 @@ Creative Commons Attribution-ShareAlike 4.0 International License
 (CC-BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
 
 When you redistribute, embed, or build derivative works on top of the
-content shipped in data/embedded.json, you must:
+fetched OAK content, you must:
 
   1. Give appropriate credit to the OAK project (e.g. "Contains content
      from the OAK framework — https://onchainattack.org — licensed under
