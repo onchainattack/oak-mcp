@@ -1,6 +1,6 @@
 {
   "name": "@onchainattack/oak-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server exposing the OAK (OnChain Attack Knowledge) framework as queryable tools for AI coding agents.",
   "license": "MIT",
   "type": "module",

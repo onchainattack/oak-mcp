@@ -56,6 +56,43 @@
     "mitigations/OAK-M01-cei.md": "# Checks-Effects-Interactions\n\nDiscipline for ordering reads, writes, and external calls in Solidity to neutralise reentrancy.\n",
     "software/OAK-S01-test-drainer.md": "# TestDrainer\n\nFixture software entry used in oak-mcp's automated tests. Not a real malware family.\n"
   },
+  "specs": [
+    {
+      "spec_id": "oak-detection-T9.005",
+      "path": "specs/T9.005-reentrancy.yml",
+      "oak_techniques": ["OAK-T9.005"],
+      "version": "0.1.0",
+      "maturity": "draft",
+      "maintainer": "@iZonex",
+      "license": "Apache-2.0",
+      "scope": "Detect contract execution paths in which an external call transfers control before storage is finalised.",
+      "data_sources": ["contract_source", "tx_call_trace"],
+      "parameter_count": 1,
+      "fixture_counts": { "positive": 1, "negative": 0 },
+      "reference_impl_count": 0,
+      "mitigation_ids": ["OAK-M01"],
+      "body": {
+        "spec_id": "oak-detection-T9.005",
+        "version": "0.1.0",
+        "maturity": "draft",
+        "scope": "Detect reentrancy paths.",
+        "detection_logic": {
+          "description": "AST + runtime trace.",
+          "pseudocode": "for each fn F: ..."
+        },
+        "parameters": { "inner_write_threshold": { "type": "integer", "default": 2 } },
+        "output_alert": ["oak_technique", "detection_path"],
+        "test_fixtures": { "positive": ["2016-06-the-dao"], "negative": [] },
+        "mitigations": ["OAK-M01"]
+      }
+    }
+  ],
+  "specs_by_technique": {
+    "OAK-T9.005": ["oak-detection-T9.005"]
+  },
+  "spec_yaml": {
+    "oak-detection-T9.005": "oak_techniques: [OAK-T9.005]\nspec_id: oak-detection-T9.005\nversion: 0.1.0\n"
+  },
   "source": "test-fixture",
   "fetchedAt": "2026-05-03T00:00:00.000Z"
 }

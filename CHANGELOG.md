@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-04
+
+### Added
+
+- **`oak_get_detection_spec` tool.** Returns an OAK Detection Spec by
+  `spec_id` (e.g. `oak-detection-T1.003`) or by OAK Technique ID
+  (e.g. `OAK-T1.003`). When a Technique has multiple specs, returns the
+  candidate `spec_ids` for the caller to disambiguate. Pass
+  `include_yaml: true` to also receive the raw YAML source. Specs carry
+  vendor-neutral pseudocode + parameters + test fixtures + false-positive
+  modes — the canonical detection-rule shape per Technique.
+- **Snapshot schema extension.** `EmbeddedData` now carries `specs[]`,
+  `specs_by_technique`, and `spec_yaml`. Servers running against an older
+  snapshot (no specs) fail the new tool with a clear remediation hint;
+  everything else continues to work.
+- `oak_dataset_info` reports `detection_specs` count alongside the
+  existing entity counts.
+
 ## [0.2.0] — 2026-05-04
 
 ### Changed

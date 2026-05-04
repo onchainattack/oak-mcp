@@ -121,6 +121,7 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
       "oak_find_mitigations_for_technique",
       "oak_find_relationships",
       "oak_find_software_for_technique",
+      "oak_get_detection_spec",
       "oak_get_mitigation",
       "oak_get_software",
       "oak_get_tactic",
@@ -225,6 +226,49 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
       tactic: "OAK-T99",
     })) as { count: number };
     expect(res.count).toBe(0);
+  });
+
+  it("oak_get_detection_spec returns the spec by spec_id", async () => {
+    const spec = (await harness.toolCall("oak_get_detection_spec", {
+      id: "oak-detection-T9.005",
+    })) as { kind: string; spec_id: string; oak_techniques: string[]; body: Record<string, unknown> };
+    expect(spec.kind).toBe("detection_spec");
+    expect(spec.spec_id).toBe("oak-detection-T9.005");
+    expect(spec.oak_techniques).toContain("OAK-T9.005");
+    expect(spec.body).toBeTypeOf("object");
+  });
+
+  it("oak_get_detection_spec resolves a Technique ID via the index", async () => {
+    const spec = (await harness.toolCall("oak_get_detection_spec", {
+      id: "OAK-T9.005",
+    })) as { spec_id: string };
+    expect(spec.spec_id).toBe("oak-detection-T9.005");
+  });
+
+  it("oak_get_detection_spec includes raw YAML when requested", async () => {
+    const spec = (await harness.toolCall("oak_get_detection_spec", {
+      id: "oak-detection-T9.005",
+      include_yaml: true,
+    })) as { yaml: string | null };
+    expect(typeof spec.yaml).toBe("string");
+    expect(spec.yaml).toContain("oak_techniques");
+  });
+
+  it("oak_get_detection_spec returns an error for an unknown id", async () => {
+    const res = await harness.call("tools/call", {
+      name: "oak_get_detection_spec",
+      arguments: { id: "oak-detection-T0.000" },
+    });
+    const result = res.result as { isError?: boolean; content: Array<{ text: string }> };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/No detection spec/);
+  });
+
+  it("oak_dataset_info reports detection_specs count", async () => {
+    const info = (await harness.toolCall("oak_dataset_info")) as {
+      counts: { detection_specs: number };
+    };
+    expect(info.counts.detection_specs).toBeGreaterThan(0);
   });
 
   it("returns an MCP error response for an unknown id", async () => {

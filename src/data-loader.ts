@@ -82,9 +82,29 @@ export type OakBundle = {
   relationships: OakRelationship[];
 };
 
+export type OakDetectionSpec = {
+  spec_id: string;
+  path?: string;
+  oak_techniques: string[];
+  version: string;
+  maturity: string;
+  maintainer?: string;
+  license?: string;
+  scope?: string;
+  data_sources?: string[];
+  parameter_count?: number;
+  fixture_counts?: { positive: number; negative: number };
+  reference_impl_count?: number;
+  mitigation_ids?: string[];
+  body: Record<string, unknown>;
+};
+
 export type EmbeddedData = {
   oak: OakBundle;
   docs: Record<string, string>;
+  specs?: OakDetectionSpec[];
+  specs_by_technique?: Record<string, string[]>;
+  spec_yaml?: Record<string, string>;
   source: string;
   fetchedAt: string;
 };

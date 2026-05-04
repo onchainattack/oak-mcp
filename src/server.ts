@@ -218,6 +218,25 @@ const TOOLS = [
     },
   },
   {
+    name: "oak_get_detection_spec",
+    description:
+      "Return the OAK Detection Spec for a given identifier. Accepts either a spec_id (e.g. oak-detection-T1.003) or an OAK Technique ID (e.g. OAK-T1.003). Detection Specs are vendor-neutral, language-agnostic pseudocode + parameters + test fixtures + false-positive modes for a Technique. When a Technique has multiple specs, returns the list of spec_ids and asks the caller to disambiguate. Use after oak_get_technique when the agent needs the canonical detection-rule shape.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "spec_id (oak-detection-Tn.NNN) or OAK Technique ID (OAK-Tn.NNN)",
+        },
+        include_yaml: {
+          type: "boolean",
+          description: "Include the raw YAML source alongside the parsed body (default false).",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "oak_dataset_info",
     description:
       "Return metadata about the embedded OAK snapshot: counts, source URL, fetch timestamp.",
@@ -419,7 +438,7 @@ function findRelationships(d: EmbeddedData, id: string) {
 const server = new Server(
   {
     name: "oak-mcp",
-    version: "0.2.0",
+    version: "0.3.0",
   },
   {
     capabilities: { tools: {} },
@@ -510,6 +529,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
       }
 
+      case "oak_get_detection_spec": {
+        const id = String(args.id ?? "").trim();
+        if (!id) return err("id is required");
+        const includeYaml = args.include_yaml === true;
+        const specs = d.specs ?? [];
+        if (specs.length === 0) {
+          return err(
+            "This OAK snapshot does not include detection specs. Update to a snapshot that ships specs (oak-mcp v0.3+ schema) or contact the maintainer.",
+          );
+        }
+        let spec = specs.find((s) => s.spec_id === id);
+        if (!spec) {
+          const idx = d.specs_by_technique ?? {};
+          const matches = idx[id] ?? idx[id.toUpperCase()] ?? [];
+          if (matches.length === 0) {
+            return err(
+              `No detection spec for ${id}. Try oak_search to confirm the Technique ID, or list spec_ids via oak_dataset_info.`,
+            );
+          }
+          if (matches.length > 1) {
+            return ok({
+              technique_id: id,
+              count: matches.length,
+              spec_ids: matches,
+              note: "Multiple specs cover this technique — call oak_get_detection_spec again with a specific spec_id.",
+            });
+          }
+          spec = specs.find((s) => s.spec_id === matches[0]);
+          if (!spec) return err(`Index points to ${matches[0]} but no spec body found.`);
+        }
+        const payload: Record<string, unknown> = {
+          kind: "detection_spec",
+          spec_id: spec.spec_id,
+          path: spec.path,
+          oak_techniques: spec.oak_techniques,
+          version: spec.version,
+          maturity: spec.maturity,
+          maintainer: spec.maintainer,
+          license: spec.license,
+          body: spec.body,
+        };
+        if (includeYaml) {
+          payload.yaml = d.spec_yaml?.[spec.spec_id] ?? null;
+        }
+        return ok(payload);
+      }
+
       case "oak_dataset_info": {
         return ok({
           source: d.source,
@@ -521,6 +587,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             software: d.oak.software.length,
             relationships: d.oak.relationships?.length ?? 0,
             embedded_bodies: Object.keys(d.docs).length,
+            detection_specs: d.specs?.length ?? 0,
           },
         });
       }
@@ -535,4 +602,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("[oak-mcp] ready · stdio transport · oak-mcp v0.2.0");
+console.error("[oak-mcp] ready · stdio transport · oak-mcp v0.3.0");
