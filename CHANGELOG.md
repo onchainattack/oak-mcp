@@ -7,11 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-04
+
+### Changed
+
+- **Runtime fetch with local cache** instead of build-time bundle. The OAK
+  content snapshot is now fetched from
+  `https://onchainattack.org/tools/embedded.json` on first use and cached
+  in the platform cache directory (`~/Library/Caches/oak-mcp` on macOS,
+  `${XDG_CACHE_HOME:-~/.cache}/oak-mcp` on Linux,
+  `%LOCALAPPDATA%\oak-mcp\Cache` on Windows). Default TTL is 24h, so every
+  day you get fresh corpus without re-installing.
+- **Stale-cache fallback.** If the upstream is unreachable but a local
+  cache exists, the server still starts and serves the stale snapshot
+  with a stderr warning. No more brick-on-network-flap.
+- **Smaller install.** `data/embedded.json` is no longer bundled. Drops
+  the on-disk install size by ~7 MB.
+- The `OAK_DATA_PATH` env var is renamed to `OAK_MCP_OFFLINE_DATA` (the
+  old name is still honoured as an alias).
+
 ### Added
 
-- `oak_search` now also indexes the embedded markdown bodies (descriptions,
-  indicators, detection signals, examples), so natural-language queries that
-  hit content rather than metadata return results.
+- New env-var surface for runtime control:
+  `OAK_MCP_OFFLINE_DATA`, `OAK_MCP_DATA_URL`, `OAK_MCP_CACHE_TTL`,
+  `OAK_MCP_NO_CACHE`, `OAK_MCP_CACHE_DIR`. See README "Data freshness".
+
+### Removed
+
+- `npm run fetch-data` and `npm run fetch-data:skip-if-present` — superseded
+  by the runtime loader. To run against a local OAK clone, build the
+  snapshot in OAK (`npm run site:data`) and point oak-mcp at it via
+  `OAK_MCP_OFFLINE_DATA=/path/to/oak/tools/embedded.json`.
+
+## [0.1.0] — 2026-05-01
+
+### Added
+
+- `oak_search` indexes the embedded markdown bodies (descriptions,
+  indicators, detection signals, examples), so natural-language queries
+  that hit content rather than metadata return results.
 - `oak_search` accepts an optional `kind` parameter (`"tactic" | "technique" |
   "mitigation" | "software"` or an array of those) to scope results.
 - `OAK_DATA_PATH` environment variable for pointing the server at an alternative
@@ -19,21 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vitest` integration test suite covering the JSON-RPC contract of every
   tool against a synthetic fixture (`tests/fixtures/embedded.json`).
 - GitHub Actions CI workflow running typecheck + tests on Node 20 and 22.
-- `data/embedded.json` and `package-lock.json` are now committed; `npm install`
-  from a git source no longer requires network access.
-- New `build:offline` / `fetch-data:skip-if-present` npm scripts. `prepare`
-  now runs the offline build by default; use `npm run fetch-data` to refresh.
 - Community scaffolding: `CONTRIBUTING.md`, `SECURITY.md`, `NOTICE`, issue and
   PR templates, Dependabot config.
-
-### Fixed
-
-- `scripts/fetch-data.mjs` no longer leaks the maintainer's local OAK clone
-  path into the embedded snapshot. Every `source_file` is now stored as a
-  portable relative path (e.g. `tactics/T1-token-genesis.md`) and `data.source`
-  is a stable identifier (`"local"` or the BASE URL).
-
-## [0.1.0] — 2026-05-01
 
 ### Added
 
@@ -47,5 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - stdio transport, suitable for Claude Desktop, Cursor, Cline, Zed, and any
   other MCP-aware client.
 
-[Unreleased]: https://github.com/onchainattack/oak-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/onchainattack/oak-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/onchainattack/oak-mcp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/onchainattack/oak-mcp/releases/tag/v0.1.0

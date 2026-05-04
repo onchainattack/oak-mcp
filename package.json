@@ -1,6 +1,6 @@
 {
   "name": "@onchainattack/oak-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server exposing the OAK (OnChain Attack Knowledge) framework as queryable tools for AI coding agents.",
   "license": "MIT",
   "type": "module",
@@ -10,16 +10,13 @@
   "main": "./dist/server.js",
   "files": [
     "dist/",
-    "data/embedded.json",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "fetch-data": "node scripts/fetch-data.mjs",
-    "fetch-data:skip-if-present": "node scripts/fetch-data.mjs --skip-if-present",
-    "build": "npm run fetch-data && tsc",
-    "build:offline": "npm run fetch-data:skip-if-present && tsc",
-    "prepare": "npm run build:offline",
+    "build": "tsc",
+    "build:offline": "tsc",
+    "prepare": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",

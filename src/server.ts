@@ -3,8 +3,10 @@
  * oak-mcp — Model Context Protocol server exposing the OAK
  * (OnChain Attack Knowledge) framework as queryable tools for AI coding agents.
  *
- * Embedded data snapshot is fetched at build time from onchainattack.org.
- * The server reads data/embedded.json at startup; no network access at runtime.
+ * The OAK content snapshot is fetched at runtime from
+ * https://onchainattack.org/tools/embedded.json and cached in the platform
+ * cache dir (24h TTL by default). See src/data-loader.ts for the full loading
+ * contract and env-var overrides.
  *
  * Usage (Claude Desktop / Cursor / Cline / Zed config):
  *   {
@@ -23,83 +25,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-
-// ----------------------------------------------------------------------------
-// Data loading
-// ----------------------------------------------------------------------------
-
-type OakTactic = {
-  id: string;
-  name: string;
-  phase?: string;
-  techniques: string[];
-  source_file?: string;
-};
-
-type OakTechnique = {
-  id: string;
-  name: string;
-  parent_tactics: string[];
-  maturity?: string;
-  chains?: string[];
-  first_documented?: string;
-  aliases?: string[];
-  source_file?: string;
-};
-
-type OakMitigation = {
-  id: string;
-  name: string;
-  class?: string;
-  audience?: string[];
-  maps_to_techniques?: string[];
-  source_file?: string;
-};
-
-type OakSoftware = {
-  id: string;
-  name: string;
-  type?: string;
-  aliases?: string[];
-  used_by_groups?: string[];
-  observed_techniques?: string[];
-  source_file?: string;
-};
-
-type OakRelationship = { type: string; source: string; target: string };
-
-type OakBundle = {
-  tactics: OakTactic[];
-  techniques: OakTechnique[];
-  mitigations: OakMitigation[];
-  software: OakSoftware[];
-  relationships: OakRelationship[];
-};
-
-type EmbeddedData = {
-  oak: OakBundle;
-  docs: Record<string, string>;
-  source: string;
-  fetchedAt: string;
-};
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-// Allow tests / advanced users to point the server at an alternative snapshot.
-const DATA_PATH = process.env.OAK_DATA_PATH
-  ? path.resolve(process.env.OAK_DATA_PATH)
-  : path.resolve(here, "..", "data", "embedded.json");
-
-let DATA: EmbeddedData | null = null;
-
-async function loadData(): Promise<EmbeddedData> {
-  if (DATA) return DATA;
-  const raw = await readFile(DATA_PATH, "utf8");
-  DATA = JSON.parse(raw) as EmbeddedData;
-  return DATA;
-}
+import { loadData, type EmbeddedData } from "./data-loader.js";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -493,7 +419,7 @@ function findRelationships(d: EmbeddedData, id: string) {
 const server = new Server(
   {
     name: "oak-mcp",
-    version: "0.1.0",
+    version: "0.2.0",
   },
   {
     capabilities: { tools: {} },
@@ -609,4 +535,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("[oak-mcp] ready · stdio transport · oak v0.1");
+console.error("[oak-mcp] ready · stdio transport · oak-mcp v0.2.0");

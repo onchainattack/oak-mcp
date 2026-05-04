@@ -29,7 +29,7 @@ class McpHarness {
   async start(): Promise<void> {
     this.proc = spawn("node", [serverPath], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, OAK_DATA_PATH: fixturePath },
+      env: { ...process.env, OAK_MCP_OFFLINE_DATA: fixturePath },
     });
     this.proc.stdout.on("data", (chunk: Buffer) => this.onData(chunk.toString("utf8")));
     this.proc.stderr.on("data", () => {

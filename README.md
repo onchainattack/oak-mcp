@@ -84,26 +84,20 @@ Settings → Cline → MCP Servers:
 ```bash
 git clone git@github.com:onchainattack/oak-mcp.git
 cd oak-mcp
-npm install              # runs `prepare` → uses bundled data/embedded.json, no network
-node dist/server.js
+npm install              # runs `prepare` → just tsc, no network
+node dist/server.js      # fetches snapshot on first run, caches it
 ```
 
-To pull a fresh OAK snapshot from `https://onchainattack.org` (overwrites
-`data/embedded.json`):
+To run against a local OAK clone (skip network entirely):
 
 ```bash
-npm run fetch-data
+# from the OAK repo, build a local snapshot:
+cd /path/to/oak && npm run site:data
+
+# point oak-mcp at it:
+cd /path/to/oak-mcp
+OAK_MCP_OFFLINE_DATA=/path/to/oak/tools/embedded.json node dist/server.js
 ```
-
-To build against a local OAK clone instead:
-
-```bash
-OAK_LOCAL=/path/to/oak npm run fetch-data && npm run build:offline
-```
-
-The committed `data/embedded.json` is the canonical snapshot shipped with
-the released package. `npm install` from this repo is fully offline because
-the `prepare` script re-runs the fetcher in `--skip-if-present` mode.
 
 ## Tools exposed
 
@@ -122,7 +116,33 @@ the `prepare` script re-runs the fetcher in `--skip-if-present` mode.
 
 ## Data freshness
 
-Each release of `@onchainattack/oak-mcp` bundles a snapshot of OAK content from `https://onchainattack.org/tools/oak.json` at the moment of release. Reinstall (`npm install -g @onchainattack/oak-mcp@latest`) to get fresher content.
+`@onchainattack/oak-mcp` fetches the OAK content snapshot at runtime from
+`https://onchainattack.org/tools/embedded.json` and caches it in your
+platform cache directory. The cache TTL is 24h by default, so every day
+you get fresh corpus without re-installing the package.
+
+Cache locations:
+
+| Platform | Path |
+|---|---|
+| macOS | `~/Library/Caches/oak-mcp/snapshot.json` |
+| Linux | `${XDG_CACHE_HOME:-~/.cache}/oak-mcp/snapshot.json` |
+| Windows | `%LOCALAPPDATA%\oak-mcp\Cache\snapshot.json` |
+
+If the network is down and the cache is stale, the server still starts
+and serves the stale snapshot with a warning on stderr. If there is no
+cache and the network is down, the server fails to start with a hint to
+set `OAK_MCP_OFFLINE_DATA`.
+
+### Environment overrides
+
+| Variable | Effect |
+|---|---|
+| `OAK_MCP_OFFLINE_DATA` | Absolute path to a local `embedded.json`. Skips network and cache. |
+| `OAK_MCP_DATA_URL` | Override the fetch URL (default `https://onchainattack.org/tools/embedded.json`). |
+| `OAK_MCP_CACHE_TTL` | Cache TTL in seconds (default `86400` = 24h). |
+| `OAK_MCP_NO_CACHE=1` | Bypass the cache for the first load; force re-fetch. |
+| `OAK_MCP_CACHE_DIR` | Override the cache directory entirely. |
 
 ## Contributing
 
