@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "oak-mcp": "./dist/server.js"
+    "oak-mcp": "dist/server.js"
   },
   "main": "./dist/server.js",
   "files": [
@@ -38,6 +38,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "mcp",
