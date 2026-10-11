@@ -103,7 +103,7 @@ OAK_MCP_OFFLINE_DATA=/path/to/oak/tools/embedded.json node dist/server.js
 
 | Tool | Purpose |
 |---|---|
-| `oak_search` | Full-text search across Tactics / Techniques / Mitigations / Software (ranked) |
+| `oak_search` | Full-text search across Tactics / Techniques / Mitigations / Software / Examples (ranked); withdrawn example IDs come back flagged with the reason |
 | `oak_get_technique` | Full Technique entry by `OAK-Tn.NNN` |
 | `oak_get_tactic` | Full Tactic entry by `OAK-Tn` |
 | `oak_get_mitigation` | Full Mitigation entry by `OAK-MNN` |
@@ -111,8 +111,11 @@ OAK_MCP_OFFLINE_DATA=/path/to/oak/tools/embedded.json node dist/server.js
 | `oak_find_mitigations_for_technique` | All Mitigations mapped to a Technique |
 | `oak_find_software_for_technique` | All Software observed using a Technique |
 | `oak_find_relationships` | Full relationship neighborhood for any OAK entity |
-| `oak_list_techniques` | Enumerate Techniques with optional tactic / chain / maturity filter |
-| `oak_dataset_info` | Embedded-snapshot metadata: counts, source, fetch timestamp |
+| `oak_list_techniques` | Enumerate active Techniques with optional tactic / chain / maturity filter (`include_deprecated` for tombstoned IDs) |
+| `oak_get_example` | A documented real incident by slug: Techniques, attribution, `root_cause_evidence` (which source established the mechanism, and how settled it is), full body. Withdrawn IDs return their withdrawal reason |
+| `oak_find_examples_for_technique` | Real incidents mapped to a Technique, newest first, with root-cause evidence confidence |
+| `oak_dataset_info` | Embedded-snapshot metadata: counts (incl. examples, evidenced examples, withdrawn examples, deprecated Techniques), source, fetch timestamp |
+| `oak_get_detection_spec` | Detection Spec by `spec_id` or Technique ID |
 
 ## Data freshness
 

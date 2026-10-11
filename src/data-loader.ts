@@ -73,6 +73,41 @@ export type OakSoftware = {
 
 export type OakRelationship = { type: string; source: string; target: string };
 
+/**
+ * Which source establishes an example's mechanism, and how settled it is.
+ * confirmed = operator or government source states it; corroborated = two or
+ * more independent sources; reported = one non-operator source; disputed =
+ * credible sources conflict. Present on newer OAK snapshots only.
+ */
+export type OakRootCauseEvidence = {
+  technique_id: string;
+  sources: string[];
+  source_type: string;
+  confidence: string;
+  evidence: string;
+};
+
+export type OakExample = {
+  id: string;
+  file?: string;
+  title: string;
+  date_prefix?: string;
+  techniques: string[];
+  attribution?: string;
+  root_cause_evidence?: OakRootCauseEvidence[];
+  source_file?: string;
+};
+
+/** An example ID removed from the corpus, with the reason. */
+export type OakWithdrawnExample = {
+  id: string;
+  status: string;
+  withdrawn: string;
+  title?: string;
+  reason: string;
+  record?: string;
+};
+
 export type OakBundle = {
   schema_version?: string | number;
   tactics: OakTactic[];
@@ -80,6 +115,8 @@ export type OakBundle = {
   mitigations: OakMitigation[];
   software: OakSoftware[];
   relationships: OakRelationship[];
+  examples?: OakExample[];
+  withdrawn_examples?: OakWithdrawnExample[];
 };
 
 export type OakDetectionSpec = {

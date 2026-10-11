@@ -8,7 +8,9 @@
         "id": "OAK-T9",
         "name": "Smart Contract Exploitation",
         "phase": "Execution",
-        "techniques": ["OAK-T9.005"],
+        "techniques": [
+          "OAK-T9.005"
+        ],
         "source_file": "tactics/T9-smart-contract-exploitation.md"
       }
     ],
@@ -16,12 +18,31 @@
       {
         "id": "OAK-T9.005",
         "name": "Reentrancy",
-        "parent_tactics": ["OAK-T9"],
+        "parent_tactics": [
+          "OAK-T9"
+        ],
         "maturity": "stable",
-        "chains": ["EVM"],
+        "chains": [
+          "EVM"
+        ],
         "first_documented": "2016-06",
-        "aliases": ["recursive call attack"],
+        "aliases": [
+          "recursive call attack"
+        ],
         "source_file": "techniques/T9.005-reentrancy.md"
+      },
+      {
+        "id": "OAK-T9.099",
+        "name": "Retired Fixture Technique",
+        "parent_tactics": [
+          "OAK-T9"
+        ],
+        "maturity": "deprecated",
+        "chains": [
+          "EVM"
+        ],
+        "aliases": [],
+        "source_file": "techniques/T9.099-retired.md"
       }
     ],
     "mitigations": [
@@ -29,8 +50,12 @@
         "id": "OAK-M01",
         "name": "Checks-Effects-Interactions Discipline",
         "class": "architecture",
-        "audience": ["protocol-engineer"],
-        "maps_to_techniques": ["OAK-T9.005"],
+        "audience": [
+          "protocol-engineer"
+        ],
+        "maps_to_techniques": [
+          "OAK-T9.005"
+        ],
         "source_file": "mitigations/OAK-M01-cei.md"
       }
     ],
@@ -39,38 +64,111 @@
         "id": "OAK-S01",
         "name": "TestDrainer",
         "type": "drainer-kit",
-        "aliases": ["fixture-drainer"],
-        "used_by_groups": ["OAK-G01"],
-        "observed_techniques": ["OAK-T9.005"],
+        "aliases": [
+          "fixture-drainer"
+        ],
+        "used_by_groups": [
+          "OAK-G01"
+        ],
+        "observed_techniques": [
+          "OAK-T9.005"
+        ],
         "source_file": "software/OAK-S01-test-drainer.md"
       }
     ],
     "relationships": [
-      { "type": "uses", "source": "OAK-S01", "target": "OAK-T9.005" },
-      { "type": "mitigates", "source": "OAK-M01", "target": "OAK-T9.005" }
+      {
+        "type": "uses",
+        "source": "OAK-S01",
+        "target": "OAK-T9.005"
+      },
+      {
+        "type": "mitigates",
+        "source": "OAK-M01",
+        "target": "OAK-T9.005"
+      }
+    ],
+    "examples": [
+      {
+        "id": "2016-06-the-dao",
+        "file": "2016-06-the-dao.md",
+        "title": "The DAO reentrancy drain",
+        "date_prefix": "2016-06",
+        "techniques": [
+          "OAK-T9.005"
+        ],
+        "attribution": "pseudonymous",
+        "root_cause_evidence": [
+          {
+            "technique_id": "OAK-T9.005",
+            "sources": [
+              "https://example.org/dao-postmortem"
+            ],
+            "source_type": "operator",
+            "confidence": "confirmed",
+            "evidence": "splitDAO sent ETH before updating the balance."
+          }
+        ],
+        "source_file": "examples/2016-06-the-dao.md"
+      },
+      {
+        "id": "2020-04-fixture-unevidenced",
+        "file": "2020-04-fixture-unevidenced.md",
+        "title": "Fixture reentrancy without evidence",
+        "date_prefix": "2020-04",
+        "techniques": [
+          "OAK-T9.005"
+        ],
+        "attribution": "unattributed",
+        "root_cause_evidence": [],
+        "source_file": "examples/2020-04-fixture-unevidenced.md"
+      }
+    ],
+    "withdrawn_examples": [
+      {
+        "id": "2024-01-fixture-invented-cohort",
+        "status": "quarantined",
+        "withdrawn": "2026-10-11",
+        "title": "Invented fixture cohort",
+        "reason": "No credible public record found.",
+        "record": "CORRECTIONS.md#correction-log"
+      }
     ]
   },
   "docs": {
     "tactics/T9-smart-contract-exploitation.md": "# Smart Contract Exploitation\n\nTactic-level framing for in-protocol exploitation patterns.\n",
     "techniques/T9.005-reentrancy.md": "# Reentrancy\n\nReentrancy is a class of vulnerability where an external call into an attacker-controlled contract is made before internal accounting state is finalised. The DAO 2016 incident is the canonical historical anchor.\n\n## Indicators\n\n- repeated re-entries into the same selector before the originating call returns\n- mismatch between event-emission order and state-update order\n",
     "mitigations/OAK-M01-cei.md": "# Checks-Effects-Interactions\n\nDiscipline for ordering reads, writes, and external calls in Solidity to neutralise reentrancy.\n",
-    "software/OAK-S01-test-drainer.md": "# TestDrainer\n\nFixture software entry used in oak-mcp's automated tests. Not a real malware family.\n"
+    "software/OAK-S01-test-drainer.md": "# TestDrainer\n\nFixture software entry used in oak-mcp's automated tests. Not a real malware family.\n",
+    "examples/2016-06-the-dao.md": "# The DAO reentrancy drain\n\n**OAK Techniques observed:** **OAK-T9.005** (Reentrancy)\n\nsplitDAO paid out before updating balances; recursive calls drained ~3.6M ETH.\n",
+    "examples/2020-04-fixture-unevidenced.md": "# Fixture reentrancy without evidence\n\nA fixture example with no root-cause evidence section.\n",
+    "techniques/T9.099-retired.md": "# OAK-T9.099 \u2014 Retired Fixture Technique (DEPRECATED)\n\n**Maturity:** deprecated\n"
   },
   "specs": [
     {
       "spec_id": "oak-detection-T9.005",
       "path": "specs/T9.005-reentrancy.yml",
-      "oak_techniques": ["OAK-T9.005"],
+      "oak_techniques": [
+        "OAK-T9.005"
+      ],
       "version": "0.1.0",
       "maturity": "draft",
       "maintainer": "@iZonex",
       "license": "Apache-2.0",
       "scope": "Detect contract execution paths in which an external call transfers control before storage is finalised.",
-      "data_sources": ["contract_source", "tx_call_trace"],
+      "data_sources": [
+        "contract_source",
+        "tx_call_trace"
+      ],
       "parameter_count": 1,
-      "fixture_counts": { "positive": 1, "negative": 0 },
+      "fixture_counts": {
+        "positive": 1,
+        "negative": 0
+      },
       "reference_impl_count": 0,
-      "mitigation_ids": ["OAK-M01"],
+      "mitigation_ids": [
+        "OAK-M01"
+      ],
       "body": {
         "spec_id": "oak-detection-T9.005",
         "version": "0.1.0",
@@ -80,15 +178,32 @@
           "description": "AST + runtime trace.",
           "pseudocode": "for each fn F: ..."
         },
-        "parameters": { "inner_write_threshold": { "type": "integer", "default": 2 } },
-        "output_alert": ["oak_technique", "detection_path"],
-        "test_fixtures": { "positive": ["2016-06-the-dao"], "negative": [] },
-        "mitigations": ["OAK-M01"]
+        "parameters": {
+          "inner_write_threshold": {
+            "type": "integer",
+            "default": 2
+          }
+        },
+        "output_alert": [
+          "oak_technique",
+          "detection_path"
+        ],
+        "test_fixtures": {
+          "positive": [
+            "2016-06-the-dao"
+          ],
+          "negative": []
+        },
+        "mitigations": [
+          "OAK-M01"
+        ]
       }
     }
   ],
   "specs_by_technique": {
-    "OAK-T9.005": ["oak-detection-T9.005"]
+    "OAK-T9.005": [
+      "oak-detection-T9.005"
+    ]
   },
   "spec_yaml": {
     "oak-detection-T9.005": "oak_techniques: [OAK-T9.005]\nspec_id: oak-detection-T9.005\nversion: 0.1.0\n"

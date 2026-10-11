@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-11
+
+### Added
+
+- **Worked examples are now queryable.** The snapshot has always carried
+  ~700 documented incidents and their bodies; no tool exposed them.
+  - `oak_get_example` — an incident by slug, with mapped Techniques,
+    attribution, `root_cause_evidence`, a `primary_technique` (from the
+    evidence; explicitly null with a note when none is recorded, because
+    `techniques` is an unordered set) and the full body.
+  - `oak_find_examples_for_technique` — incidents mapped to a Technique,
+    newest first, each with the root-cause evidence confidence recorded for
+    that Technique.
+  - `oak_search` gains `kind: "example"`.
+- **Root-cause evidence.** Examples may carry `root_cause_evidence`
+  (`technique_id`, `sources`, `source_type`, `confidence` =
+  confirmed / corroborated / reported / disputed, `evidence`) so an agent can
+  check *why* a classification was assigned before relying on it.
+- **Withdrawn examples.** IDs removed from the OAK corpus (e.g. the 39
+  unsourceable examples quarantined on 2026-10-11) resolve to
+  `status: "withdrawn"` with the reason, instead of "not found"; `oak_search`
+  ranks a withdrawn match first and labels it `WITHDRAWN`.
+- `oak_dataset_info` reports examples, evidenced examples, withdrawn
+  examples and deprecated Techniques.
+
+### Changed
+
+- **Deprecated Techniques are flagged and hidden by default.**
+  `oak_get_technique` adds a `status_notice` for tombstoned IDs (e.g.
+  OAK-T10.008); `oak_list_techniques` excludes them unless
+  `include_deprecated: true`; search summaries mark them
+  `DEPRECATED — do not use`; `counts.techniques` counts active ones only.
+
+Found while an external model (GPT) tested OAK as a knowledge source: it
+could not see examples through MCP, could not tell a withdrawn example from
+a missing one, and was handed a deprecated Technique as a live answer.
+
 ## [0.3.0] — 2026-05-04
 
 ### Added

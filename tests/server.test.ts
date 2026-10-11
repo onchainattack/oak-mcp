@@ -118,10 +118,12 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
       "oak_dataset_info",
+      "oak_find_examples_for_technique",
       "oak_find_mitigations_for_technique",
       "oak_find_relationships",
       "oak_find_software_for_technique",
       "oak_get_detection_spec",
+      "oak_get_example",
       "oak_get_mitigation",
       "oak_get_software",
       "oak_get_tactic",
@@ -280,4 +282,71 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/No entry for id/);
   });
+  it("oak_get_example returns an incident with root_cause_evidence and primary technique", async () => {
+    const r = (await harness.toolCall("oak_get_example", { id: "2016-06-the-dao" })) as {
+      kind: string; primary_technique: string; root_cause_evidence: Array<{ confidence: string }>; body: string;
+    };
+    expect(r.kind).toBe("example");
+    expect(r.primary_technique).toBe("OAK-T9.005");
+    expect(r.root_cause_evidence[0].confidence).toBe("confirmed");
+    expect(r.body).toContain("splitDAO");
+  });
+
+  it("oak_get_example says when no root-cause evidence exists", async () => {
+    const r = (await harness.toolCall("oak_get_example", { id: "2020-04-fixture-unevidenced" })) as {
+      primary_technique: string | null; primary_technique_note: string;
+    };
+    expect(r.primary_technique).toBeNull();
+    expect(r.primary_technique_note).toMatch(/unordered/);
+  });
+
+  it("oak_get_example reports a withdrawn id as withdrawn, not missing", async () => {
+    const r = (await harness.toolCall("oak_get_example", { id: "2024-01-fixture-invented-cohort" })) as {
+      kind: string; status: string; reason: string;
+    };
+    expect(r.kind).toBe("withdrawn_example");
+    expect(r.status).toBe("withdrawn");
+    expect(r.reason).toMatch(/No credible public record/);
+  });
+
+  it("oak_search surfaces examples and flags withdrawn ones", async () => {
+    const hits = (await harness.toolCall("oak_search", { query: "invented fixture cohort" })) as Array<{ kind: string; summary: string }>;
+    expect(hits[0].kind).toBe("withdrawn_example");
+    expect(hits[0].summary).toMatch(/^WITHDRAWN/);
+    const ex = (await harness.toolCall("oak_search", { query: "The DAO", kind: "example" })) as Array<{ kind: string; id: string }>;
+    expect(ex.map((h) => h.id)).toContain("2016-06-the-dao");
+    expect(ex.every((h) => h.kind === "example" || h.kind === "withdrawn_example")).toBe(true);
+  });
+
+  it("oak_find_examples_for_technique lists incidents newest first with evidence", async () => {
+    const r = (await harness.toolCall("oak_find_examples_for_technique", { technique_id: "OAK-T9.005" })) as {
+      count: number; examples: Array<{ id: string; root_cause_for_this_technique: { confidence: string } | null }>;
+    };
+    expect(r.count).toBe(2);
+    expect(r.examples[0].id).toBe("2020-04-fixture-unevidenced");
+    expect(r.examples[0].root_cause_for_this_technique).toBeNull();
+    expect(r.examples[1].root_cause_for_this_technique?.confidence).toBe("confirmed");
+  });
+
+  it("oak_list_techniques hides deprecated techniques unless asked", async () => {
+    const def = (await harness.toolCall("oak_list_techniques", {})) as { techniques: Array<{ id: string }> };
+    expect(def.techniques.map((t) => t.id)).not.toContain("OAK-T9.099");
+    const all = (await harness.toolCall("oak_list_techniques", { include_deprecated: true })) as { techniques: Array<{ id: string }> };
+    expect(all.techniques.map((t) => t.id)).toContain("OAK-T9.099");
+  });
+
+  it("oak_get_technique warns on a deprecated technique", async () => {
+    const r = (await harness.toolCall("oak_get_technique", { id: "OAK-T9.099" })) as { status_notice?: string };
+    expect(r.status_notice).toMatch(/^DEPRECATED/);
+  });
+
+  it("oak_dataset_info reports example, evidence and withdrawn counts", async () => {
+    const info = (await harness.toolCall("oak_dataset_info")) as { counts: Record<string, number> };
+    expect(info.counts.examples).toBe(2);
+    expect(info.counts.examples_with_root_cause_evidence).toBe(1);
+    expect(info.counts.withdrawn_examples).toBe(1);
+    expect(info.counts.deprecated_techniques).toBe(1);
+    expect(info.counts.techniques).toBe(1);
+  });
+
 });

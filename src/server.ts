@@ -25,7 +25,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { loadData, type EmbeddedData } from "./data-loader.js";
+import { loadData, type EmbeddedData, type OakExample } from "./data-loader.js";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -103,7 +103,7 @@ const TOOLS = [
   {
     name: "oak_search",
     description:
-      "Full-text search across OAK Techniques, Mitigations, Software, and Tactics. Searches IDs, names, aliases, chains, classes, types AND the embedded markdown bodies (descriptions, indicators, detection signals, examples). Returns up to 12 ranked matches with id, name, kind, and one-line summary. Use for 'is there an OAK entry for X?' queries.",
+      "Full-text search across OAK Techniques, Mitigations, Software, Tactics and worked Examples (real incidents). Searches IDs, names, aliases, chains, classes, types AND the embedded markdown bodies. Returns up to 12 ranked matches with id, name, kind, and one-line summary. Example IDs that were withdrawn from the corpus come back as kind 'withdrawn_example' with the reason — never treat those as evidence. Use for 'is there an OAK entry for X?' and 'has OAK documented incident Y?' queries.",
     inputSchema: {
       type: "object",
       properties: {
@@ -111,8 +111,8 @@ const TOOLS = [
         limit: { type: "number", description: "Max results (default 12, max 30)" },
         kind: {
           oneOf: [
-            { type: "string", enum: ["tactic", "technique", "mitigation", "software"] },
-            { type: "array", items: { type: "string", enum: ["tactic", "technique", "mitigation", "software"] } },
+            { type: "string", enum: ["tactic", "technique", "mitigation", "software", "example"] },
+            { type: "array", items: { type: "string", enum: ["tactic", "technique", "mitigation", "software", "example"] } },
           ],
           description: "Restrict results to one or more entity kinds. Omit for all kinds.",
         },
@@ -207,13 +207,14 @@ const TOOLS = [
   {
     name: "oak_list_techniques",
     description:
-      "List all OAK Techniques with id, name, parent tactics, maturity, chains. Use for full corpus enumeration. Optional filters: tactic, chain, maturity.",
+      "List OAK Techniques with id, name, parent tactics, maturity, chains. Use for full corpus enumeration. Optional filters: tactic, chain, maturity. Deprecated (tombstoned) Technique IDs are excluded unless include_deprecated is true.",
     inputSchema: {
       type: "object",
       properties: {
         tactic: { type: "string", description: "Filter by parent Tactic ID, e.g. OAK-T9" },
         chain: { type: "string", description: "Filter by chain coverage, e.g. EVM, Solana, cross-chain" },
-        maturity: { type: "string", description: "Filter by maturity, e.g. stable, observed, emerging" },
+        maturity: { type: "string", description: "Filter by maturity, e.g. stable, observed, emerging, deprecated" },
+        include_deprecated: { type: "boolean", description: "Include deprecated (tombstoned) Technique IDs (default false)" },
       },
     },
   },
@@ -237,6 +238,31 @@ const TOOLS = [
     },
   },
   {
+    name: "oak_get_example",
+    description:
+      "Return a worked Example (a documented real incident) by its slug ID, e.g. 2026-05-thorchain-router-exploit: title, date, mapped Technique IDs, attribution strength, root_cause_evidence and the full markdown body. root_cause_evidence says which source established the mechanism and how settled it is (confirmed = operator/government source; corroborated = 2+ independent sources; reported = one source; disputed = sources conflict) — check it before relying on the classification. If the ID was withdrawn from the corpus, returns status 'withdrawn' and the reason instead of the incident.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Example slug, e.g. 2023-03-euler-finance (from oak_search or oak_find_examples_for_technique)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "oak_find_examples_for_technique",
+    description:
+      "Given a Technique ID, return the documented real incidents mapped to it (newest first): id, title, date, all mapped Techniques, attribution, and the root-cause evidence confidence for this Technique where recorded. Use to ground a classification in precedent, or to see how well-evidenced a Technique's anchors are.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        technique_id: { type: "string", description: "OAK Technique ID, e.g. OAK-T9.016" },
+        limit: { type: "number", description: "Max results (default 25, max 100)" },
+      },
+      required: ["technique_id"],
+    },
+  },
+  {
     name: "oak_dataset_info",
     description:
       "Return metadata about the embedded OAK snapshot: counts, source URL, fetch timestamp.",
@@ -248,11 +274,24 @@ const TOOLS = [
 // Tool handlers
 // ----------------------------------------------------------------------------
 
-type SearchKind = "tactic" | "technique" | "mitigation" | "software";
+type SearchKind = "tactic" | "technique" | "mitigation" | "software" | "example";
+type ResultKind = SearchKind | "withdrawn_example";
+
+const DEPRECATED_NOTICE =
+  "DEPRECATED — this Technique ID is retained only as a tombstone and is never reused. Do not classify incidents under it; the body explains why it was retired and what supersedes it, if anything.";
+
+function primaryTechnique(e: OakExample): string | null {
+  return e.root_cause_evidence?.[0]?.technique_id ?? null;
+}
+
+function rceSummary(e: OakExample): string {
+  const r = e.root_cause_evidence?.[0];
+  return r ? `root cause ${r.confidence} (${r.source_type})` : "root cause not evidenced";
+}
 
 function searchAll(d: EmbeddedData, q: string, limit: number, kinds?: Set<SearchKind>) {
   const needle = q.toLowerCase();
-  const results: Array<{ kind: SearchKind; id: string; name: string; summary: string; score: number }> = [];
+  const results: Array<{ kind: ResultKind; id: string; name: string; summary: string; score: number }> = [];
   const wantKind = (k: SearchKind) => !kinds || kinds.has(k);
 
   // Metadata score: prefers exact id/name matches over substring hits.
@@ -292,7 +331,7 @@ function searchAll(d: EmbeddedData, q: string, limit: number, kinds?: Set<Search
           kind: "technique",
           id: t.id,
           name: t.name,
-          summary: `${t.maturity ?? "documented"} · ${(t.chains ?? []).join("/")}${aliases}`,
+          summary: `${t.maturity === "deprecated" ? "DEPRECATED — do not use" : t.maturity ?? "documented"} · ${(t.chains ?? []).join("/")}${aliases}`,
           score: sc,
         });
       }
@@ -329,13 +368,42 @@ function searchAll(d: EmbeddedData, q: string, limit: number, kinds?: Set<Search
     }
   }
 
+  if (wantKind("example")) {
+    for (const e of d.oak.examples ?? []) {
+      const sc = metaScore(e.id) + metaScore(e.title) + bodyScore(e.source_file);
+      if (sc > 0) {
+        results.push({
+          kind: "example",
+          id: e.id,
+          name: e.title,
+          summary: `${e.date_prefix ?? "undated"} · ${(e.techniques ?? []).join(", ")} · ${rceSummary(e)}`,
+          score: sc,
+        });
+      }
+    }
+    for (const w of d.oak.withdrawn_examples ?? []) {
+      const sc = metaScore(w.id) + metaScore(w.title ?? "");
+      if (sc > 0) {
+        results.push({
+          kind: "withdrawn_example",
+          id: w.id,
+          name: w.title ?? w.id,
+          summary: `WITHDRAWN ${w.withdrawn} — ${w.reason}`,
+          // Rank a withdrawn hit above body-only matches so an agent that asks
+          // about it by name sees the withdrawal first.
+          score: sc + 20,
+        });
+      }
+    }
+  }
+
   return results.sort((a, b) => b.score - a.score).slice(0, limit).map(({ score: _score, ...r }) => r);
 }
 
 function parseKindArg(raw: unknown): Set<SearchKind> | undefined {
   if (raw === undefined || raw === null) return undefined;
   const list = Array.isArray(raw) ? raw : [raw];
-  const valid: SearchKind[] = ["tactic", "technique", "mitigation", "software"];
+  const valid: SearchKind[] = ["tactic", "technique", "mitigation", "software", "example"];
   const out = new Set<SearchKind>();
   for (const k of list) {
     if (typeof k === "string" && (valid as string[]).includes(k)) {
@@ -438,7 +506,7 @@ function findRelationships(d: EmbeddedData, id: string) {
 const server = new Server(
   {
     name: "oak-mcp",
-    version: "0.3.0",
+    version: "0.4.0",
   },
   {
     capabilities: { tools: {} },
@@ -473,8 +541,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (found.kind !== expectedKind) {
           return err(`${id} is a ${found.kind}, not a ${expectedKind} — try oak_get_${found.kind}`);
         }
+        const notice =
+          found.kind === "technique" && (found.entity as { maturity?: string }).maturity === "deprecated"
+            ? { status_notice: DEPRECATED_NOTICE }
+            : {};
         return ok({
           kind: found.kind,
+          ...notice,
           ...found.entity,
           body: found.body ? summarize(found.body, 4000) : "[markdown body not embedded in this snapshot]",
         });
@@ -510,7 +583,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const tactic = (args.tactic as string | undefined)?.toUpperCase();
         const chain = (args.chain as string | undefined)?.toLowerCase();
         const maturity = (args.maturity as string | undefined)?.toLowerCase();
+        const includeDeprecated = args.include_deprecated === true || maturity === "deprecated";
         const list = d.oak.techniques.filter((t) => {
+          if (!includeDeprecated && (t.maturity ?? "").toLowerCase() === "deprecated") return false;
           if (tactic && !(t.parent_tactics ?? []).some((p) => p.toUpperCase() === tactic)) return false;
           if (chain && !(t.chains ?? []).some((c) => c.toLowerCase().includes(chain))) return false;
           if (maturity && (t.maturity ?? "").toLowerCase() !== maturity) return false;
@@ -576,18 +651,79 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return ok(payload);
       }
 
+      case "oak_get_example": {
+        const id = String(args.id ?? "").trim().replace(/\.md$/, "");
+        if (!id) return err("id is required");
+        const e = (d.oak.examples ?? []).find((x) => x.id === id);
+        if (!e) {
+          const w = (d.oak.withdrawn_examples ?? []).find((x) => x.id === id);
+          if (w) {
+            return ok({
+              kind: "withdrawn_example",
+              ...w,
+              status: "withdrawn",
+              quarantine_status: w.status,
+              note: "This incident was removed from the OAK corpus. Do not cite it or classify by it.",
+            });
+          }
+          return err(`No example with id ${id}. Example IDs are file slugs like 2023-03-euler-finance — try oak_search with kind "example".`);
+        }
+        const body = findDocBody(d, e.source_file);
+        return ok({
+          kind: "example",
+          ...e,
+          primary_technique: primaryTechnique(e),
+          primary_technique_note: primaryTechnique(e)
+            ? "From root_cause_evidence."
+            : "No root_cause_evidence recorded: `techniques` is an unordered set and does not say which Technique is the root cause. Read the body's 'OAK Techniques observed' line, where the first-listed Technique is primary.",
+          body: body ? summarize(body, 8000) : "[markdown body not embedded in this snapshot]",
+        });
+      }
+
+      case "oak_find_examples_for_technique": {
+        const tid = String(args.technique_id ?? "").trim();
+        if (!tid) return err("technique_id is required");
+        const limit = Math.min(100, Math.max(1, Number(args.limit ?? 25)));
+        const tech = d.oak.techniques.find((t) => t.id === tid);
+        const all = (d.oak.examples ?? [])
+          .filter((e) => (e.techniques ?? []).includes(tid))
+          .sort((a, b) => (b.date_prefix ?? "").localeCompare(a.date_prefix ?? ""));
+        return ok({
+          technique_id: tid,
+          ...(tech?.maturity === "deprecated" ? { status_notice: DEPRECATED_NOTICE } : {}),
+          count: all.length,
+          examples: all.slice(0, limit).map((e) => {
+            const r = (e.root_cause_evidence ?? []).find((x) => x.technique_id === tid);
+            return {
+              id: e.id,
+              title: e.title,
+              date: e.date_prefix,
+              techniques: e.techniques,
+              attribution: e.attribution,
+              root_cause_for_this_technique: r
+                ? { confidence: r.confidence, source_type: r.source_type, sources: r.sources }
+                : null,
+            };
+          }),
+        });
+      }
+
       case "oak_dataset_info": {
         return ok({
           source: d.source,
           fetched_at: d.fetchedAt,
           counts: {
             tactics: d.oak.tactics.length,
-            techniques: d.oak.techniques.length,
+            techniques: d.oak.techniques.filter((t) => t.maturity !== "deprecated").length,
             mitigations: d.oak.mitigations.length,
             software: d.oak.software.length,
             relationships: d.oak.relationships?.length ?? 0,
             embedded_bodies: Object.keys(d.docs).length,
             detection_specs: d.specs?.length ?? 0,
+            examples: d.oak.examples?.length ?? 0,
+            examples_with_root_cause_evidence: (d.oak.examples ?? []).filter((e) => (e.root_cause_evidence ?? []).length > 0).length,
+            withdrawn_examples: d.oak.withdrawn_examples?.length ?? 0,
+            deprecated_techniques: d.oak.techniques.filter((t) => t.maturity === "deprecated").length,
           },
         });
       }
@@ -602,4 +738,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("[oak-mcp] ready · stdio transport · oak-mcp v0.3.0");
+console.error("[oak-mcp] ready · stdio transport · oak-mcp v0.4.0");
