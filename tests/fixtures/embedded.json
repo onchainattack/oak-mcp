@@ -132,6 +132,15 @@
         "title": "Invented fixture cohort",
         "reason": "No credible public record found.",
         "record": "CORRECTIONS.md#correction-log"
+      },
+      {
+        "id": "2016-06-the-dao-duplicate",
+        "status": "merged",
+        "withdrawn": "2026-10-11",
+        "title": "The DAO duplicate entry",
+        "reason": "duplicate entry for the same incident; merged into 2016-06-the-dao",
+        "record": "CORRECTIONS.md#correction-log",
+        "superseded_by": "2016-06-the-dao"
       }
     ]
   },

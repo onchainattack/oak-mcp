@@ -663,7 +663,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ...w,
               status: "withdrawn",
               quarantine_status: w.status,
-              note: "This incident was removed from the OAK corpus. Do not cite it or classify by it.",
+              note: w.superseded_by
+                ? `Duplicate entry merged into ${w.superseded_by} — call oak_get_example with that id.`
+                : "This incident was removed from the OAK corpus. Do not cite it or classify by it.",
             });
           }
           return err(`No example with id ${id}. Example IDs are file slugs like 2023-03-euler-finance — try oak_search with kind "example".`);

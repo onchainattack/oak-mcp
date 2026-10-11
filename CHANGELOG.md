@@ -28,7 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Withdrawn examples.** IDs removed from the OAK corpus (e.g. the 39
   unsourceable examples quarantined on 2026-10-11) resolve to
   `status: "withdrawn"` with the reason, instead of "not found"; `oak_search`
-  ranks a withdrawn match first and labels it `WITHDRAWN`.
+  ranks a withdrawn match first and labels it `WITHDRAWN`. Duplicate
+  entries merged into another example carry `superseded_by`, and the
+  response tells the agent which id to fetch instead.
 - `oak_dataset_info` reports examples, evidenced examples, withdrawn
   examples and deprecated Techniques.
 

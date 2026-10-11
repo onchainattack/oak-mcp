@@ -106,6 +106,8 @@ export type OakWithdrawnExample = {
   title?: string;
   reason: string;
   record?: string;
+  /** Present when status is "merged": the surviving example's id. */
+  superseded_by?: string;
 };
 
 export type OakBundle = {

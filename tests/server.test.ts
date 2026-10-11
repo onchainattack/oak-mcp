@@ -309,6 +309,15 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
     expect(r.reason).toMatch(/No credible public record/);
   });
 
+  it("oak_get_example points a merged id at the surviving entry", async () => {
+    const r = (await harness.toolCall("oak_get_example", { id: "2016-06-the-dao-duplicate" })) as {
+      status: string; superseded_by: string; note: string;
+    };
+    expect(r.status).toBe("withdrawn");
+    expect(r.superseded_by).toBe("2016-06-the-dao");
+    expect(r.note).toMatch(/merged into 2016-06-the-dao/);
+  });
+
   it("oak_search surfaces examples and flags withdrawn ones", async () => {
     const hits = (await harness.toolCall("oak_search", { query: "invented fixture cohort" })) as Array<{ kind: string; summary: string }>;
     expect(hits[0].kind).toBe("withdrawn_example");
@@ -344,7 +353,7 @@ describe("oak-mcp server (stdio JSON-RPC)", () => {
     const info = (await harness.toolCall("oak_dataset_info")) as { counts: Record<string, number> };
     expect(info.counts.examples).toBe(2);
     expect(info.counts.examples_with_root_cause_evidence).toBe(1);
-    expect(info.counts.withdrawn_examples).toBe(1);
+    expect(info.counts.withdrawn_examples).toBe(2);
     expect(info.counts.deprecated_techniques).toBe(1);
     expect(info.counts.techniques).toBe(1);
   });
